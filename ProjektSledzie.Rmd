@@ -1,0 +1,473 @@
+---
+title: "ProjektSledzie"
+author: "Maciej Appelt"
+date: "16 maja 2018"
+output: 
+  html_document: 
+    df_print: default
+    keep_md: yes
+    toc: yes
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+1. Przygotowanie bibliotek do pracy
+```{r biblioteki echo=FALSE}
+#ładowanie bibliotek
+library(knitr)     
+library(dplyr)  
+library(ggplot2)  
+library(plotly)
+library(gridExtra)   
+library(corrplot)    
+library(caret)       
+library(randomForest)
+```
+2. Ładowanie oraz struktura danych
+```{r pressure, echo=FALSE}
+set.seed(120) #gwarancja tych samych danych przy każdym uruchomieniu programu
+sledzie <- read.csv("sledzie.csv")
+str(sledzie)
+```
+Zbiór danych zawiera 52582 obserwacje opisane 15 atrybutami:
+length: długość złowionego śledzia [cm]
+cfin1: dostępność planktonu [zagęszczenie Calanus finmarchicus gat. 1]
+cfin2: dostępność planktonu [zagęszczenie Calanus finmarchicus gat. 2]
+chel1: dostępność planktonu [zagęszczenie Calanus helgolandicus gat. 1]
+chel2: dostępność planktonu [zagęszczenie Calanus helgolandicus gat. 2]
+lcop1: dostępność planktonu [zagęszczenie widłonogów gat. 1]
+lcop2: dostępność planktonu [zagęszczenie widłonogów gat. 2]
+fbar: natężenie połowów w regionie [ułamek pozostawionego narybku]
+recr: roczny narybek [liczba śledzi]
+cumf: łączne roczne natężenie połowów w regionie [ułamek pozostawionego narybku]
+totaln: łączna liczba ryb złowionych w ramach połowu [liczba śledzi]
+sst: temperatura przy powierzchni wody [°C]
+sal: poziom zasolenia wody [Knudsen ppt]
+xmonth: miesiąc połowu [numer miesiąca]
+nao: oscylacja północnoatlantycka [mb]
+
+3. Zamiana atrybutów "?" na wartości N/A
+```{r}
+matrix <- as.matrix(sledzie)
+nullValuesCount <- length(matrix[matrix=="?"])
+matrix[matrix=="?"] <- NA
+sledzie <- as.data.frame(matrix)
+```
+
+4. Zmiana typów zmiennych
+Zmiana typów zmiennych ułatwi czyszczenie danych oraz późniejszą analizę.
+```{r}
+sledzie$length <- as.numeric(as.character(sledzie$length))
+sledzie$cfin1 <- as.numeric(as.character(sledzie$cfin1))
+sledzie$cfin2 <- as.numeric(as.character(sledzie$cfin2))
+sledzie$chel1 <- as.numeric(as.character(sledzie$chel1))
+sledzie$chel2 <- as.numeric(as.character(sledzie$chel2))
+sledzie$lcop1 <- as.numeric(as.character(sledzie$lcop1))
+sledzie$lcop2 <- as.numeric(as.character(sledzie$lcop2))
+sledzie$fbar <- as.numeric(as.character(sledzie$fbar))
+sledzie$recr <- as.numeric(as.character(sledzie$recr))
+sledzie$cumf <- as.numeric(as.character(sledzie$cumf))
+sledzie$totaln <- as.numeric(as.character(sledzie$totaln))
+sledzie$sst <- as.numeric(as.character(sledzie$sst))
+sledzie$sal <- as.numeric(as.character(sledzie$sal))
+sledzie$xmonth <- as.integer(as.character(sledzie$xmonth))
+sledzie$nao <- as.numeric(as.character(sledzie$nao))
+sledzie$X <- as.integer(as.character(sledzie$X))
+```
+
+5. Analiza rozkładu atrybutów
+
+```{r}
+summary(sledzie[-1])
+```
+
+6. Wielkość zbioru i wartości puste
+
+Zbiór danych opisujący połów śledzi zawiera ponad 10 tys. niepełnych obserwacji. Całkowity zbiór składa się z ponad 52 tys. pomiarów. Pomijając prawie 20% danych zostałyby utracone istotne informacje.
+
+Na podstawie podsumowania statystyki załadowanego pliku można zauważyć, że brakujące dane występują jedynie w atrybutach opisujących:
+
+- dostępność planktonu (cfin1, cfin2, chel1, chel2, lcop1, lcop2),
+- temperaturę przy powierzchni wody (sst).
+
+W zbiorze danych można zwrócić uwagę, że wartości atrybutów występują w podobnych grupach. Dla przedstawienia tej tezy wybrałem przykładowe trzy podzbiory sąsiadujących ze sobą elementów:
+
+```{r}
+sledzie[c(1:5, 1001:1005, 20001:20005), ]
+```
+7. Uzupełnianie wartości pustych
+```{r}
+for(i in 1:length(sledzie$cfin1))
+{
+  if(is.na(sledzie$cfin1[i]))
+  {
+    if(!is.na(sledzie$cfin2[i+1])&!is.na(sledzie$cfin2[i]))
+    {
+      if(sledzie$cfin2[i] == sledzie$cfin2[i+1])
+      {
+        if(!is.na(sledzie$cfin1[i+1]))
+        {
+          sledzie$cfin1[i] <- sledzie$cfin1[i+1]
+        }
+        else
+        {
+          sledzie$cfin1[i] <- sledzie$cfin1[i-1]
+        }
+      }
+      else
+      {
+        sledzie$cfin1[i] <- sledzie$cfin1[i-1]
+      }
+    }
+    else
+    {
+      sledzie$cfin1[i] <- sledzie$cfin1[i-1]
+    }
+  }
+  if(is.na(sledzie$cfin2[i]))
+  {
+    if(!is.na(sledzie$cfin1[i+1])&!is.na(sledzie$cfin1[i]))
+    {
+      if(sledzie$cfin1[i] == sledzie$cfin1[i+1])
+      {
+        if(!is.na(sledzie$cfin2[i+1]))
+        {
+          sledzie$cfin2[i] <- sledzie$cfin2[i+1]
+        }
+        else
+        {
+          sledzie$cfin2[i] <- sledzie$cfin2[i-1]
+        }
+      }
+      else
+      {
+        sledzie$cfin2[i] <- sledzie$cfin2[i-1]
+      }
+    }
+    else
+    {
+      sledzie$cfin2[i] <- sledzie$cfin2[i-1]
+    }
+  }
+  if(is.na(sledzie$chel1[i]))
+  {
+    if(!is.na(sledzie$chel2[i+1])&!is.na(sledzie$chel2[i]))
+    {
+      if(sledzie$chel2[i] == sledzie$chel2[i+1])
+      {
+        if(!is.na(sledzie$chel1[i+1]))
+        {
+          sledzie$chel1[i] <- sledzie$chel1[i+1]
+        }
+        else
+        {
+          sledzie$chel1[i] <- sledzie$chel1[i-1]
+        }
+      }
+      else
+      {
+        sledzie$chel1[i] <- sledzie$chel1[i-1]
+      }
+    }
+    else
+    {
+      sledzie$chel1[i] <- sledzie$chel1[i-1]
+    }
+  }
+  if(is.na(sledzie$chel2[i]))
+  {
+    if(!is.na(sledzie$chel1[i+1])&!is.na(sledzie$chel1[i]))
+    {
+      if(sledzie$chel1[i] == sledzie$chel1[i+1])
+      {
+        if(!is.na(sledzie$chel2[i+1]))
+        {
+          sledzie$chel2[i] <- sledzie$chel2[i+1]
+        }
+        else
+        {
+          sledzie$chel2[i] <- sledzie$chel2[i-1]
+        }
+      }
+      else
+      {
+        sledzie$chel2[i] <- sledzie$chel2[i-1]
+      }
+    }
+    else
+    {
+      sledzie$chel2[i] <- sledzie$chel2[i-1]
+    }
+    
+  }
+  if(is.na(sledzie$lcop1[i]))
+  {
+    if(!is.na(sledzie$lcop2[i+1])&!is.na(sledzie$lcop2[i]))
+    {
+      if(sledzie$lcop2[i] == sledzie$lcop2[i+1])
+      {
+        if(!is.na(sledzie$lcop1[i+1]))
+        {
+          sledzie$lcop1[i] <- sledzie$lcop1[i+1]
+        }
+        else
+        {
+          sledzie$lcop1[i] <- sledzie$lcop1[i-1]
+        }
+      }
+      else
+      {
+        sledzie$lcop1[i] <- sledzie$lcop1[i-1]
+      }
+    }
+    else
+    {
+      sledzie$lcop1[i] <- sledzie$lcop1[i-1]
+    }
+  }
+  if(is.na(sledzie$lcop2[i]))
+  {
+    if(!is.na(sledzie$lcop2[i+1])&!is.na(sledzie$lcop2[i]))
+    {
+      if(sledzie$lcop1[i] == sledzie$lcop1[i+1])
+      {
+        sledzie$lcop2[i] <- sledzie$lcop2[i+1]
+      }
+      else
+      {
+        sledzie$lcop2[i]<-sledzie$lcop2[i-1]
+      }
+    }
+    else
+    {
+      sledzie$lcop2[i] <- sledzie$lcop2[i-1]
+    }
+  }
+  if(is.na(sledzie$fbar[i]))
+  {
+    if(sledzie$recr[i] == sledzie$recr[i+1])
+    {
+      sledzie$fbar[i] <- sledzie$fbar[i+1]
+    }
+    else
+    {
+      sledzie$fbar[i] <- sledzie$fbar[i-1]
+    }
+    
+  }
+  if(is.na(sledzie$recr[i]))
+  {
+    if(sledzie$fbar[i] == sledzie$fbar[i+1])
+    {
+      sledzie$recr[i] <- sledzie$recr[i+1]
+    }
+    else
+    {
+      sledzie$recr[i] <- sledzie$recr[i-1]
+    }
+  }
+  if(is.na(sledzie$cumf[i]))
+  {
+    if(sledzie$totaln[i] == sledzie$totaln[i+1])
+    {
+      sledzie$cumf[i] <- sledzie$cumf[i+1]
+    }
+    else
+    {
+      sledzie$cumf[i] <- sledzie$cumf[i-1]
+    }
+    
+  }
+  if(is.na(sledzie$totaln[i]))
+  {
+    if(sledzie$cumf[i] == sledzie$cumf[i+1])
+    {
+      sledzie$totaln[i] <- sledzie$totaln[i+1]
+    }
+    else
+    {
+      sledzie$totaln[i] <- sledzie$totaln[i-1]
+    }
+    
+  }
+  if(is.na(sledzie$sst[i]))
+  {
+    if(sledzie$sal[i] == sledzie$sal[i+1])
+    {
+      if(!is.na(sledzie$sst[i+1]))
+      {
+        sledzie$sst[i] <- sledzie$sst[i+1]
+      }
+      else
+      {
+        sledzie$sst[i] <- sledzie$sst[i-1]
+      }
+    }
+    else
+    {
+      sledzie$sst[i] <- sledzie$sst[i-1]
+    }
+    
+  }
+  if(is.na(sledzie$sal[i]))
+  {
+    if(sledzie$sst[i] == sledzie$sst[i+1])
+    {
+      sledzie$sal[i] <- sledzie$sal[i+1]
+    }
+    else
+    {
+      sledzie$sal[i] <- sledzie$sal[i-1]
+    }
+    
+  }
+}
+```
+Po zamianie pustych wartości na podobne, podsumowanie zbioru danych wygląda następujaco:
+
+```{r}
+summary(sledzie[-1])
+```
+
+8. Normalizacja danych
+W celu znormalizowania danych dzielimy cały obszar na zbiór uczacy i treningowy. Aby tego dokonać, korzystam z biblioteki caret i określam parametr stratyfikacji (w naszym podejściu długość śledzia - length), procent w ziorze uczącym (75%) oraz "wymuszę" indeksy zamiast listy.
+```{r} 
+set.seed(23)
+inTraining <- createDataPartition(
+    y = sledzie$length,
+    p = .75,
+    list = FALSE)
+sledzieTraining <- sledzie[inTraining, ]
+sledzieTest <- sledzie[-inTraining, ]
+```
+
+9. Analiza atrybutów zbioru danych
+- Długość śledzia
+```{r}
+ggplot(sledzie,aes(x=length)) + geom_histogram(colour = "red") + ggtitle("Długość śledzia")
+```
+- Dostępność planktonu [zagęszczenie Calanus finmarchicus gat. 1]
+```{r}
+ggplot(sledzie,aes(x=cfin1)) + geom_histogram(colour = "yellow") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
+```
+- Dostepność planktonu[zagęszczenie Calanus finmarchicus gat. 2]
+```{r}
+ggplot(sledzie,aes(x=cfin2)) + geom_histogram(colour = "green") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
+```
+- Dostępnosc planktonu [zageszczenie Calanus helgolandicus gat. 1]
+```{r}
+ggplot(sledzie,aes(x=chel1))+geom_histogram(colour = "yellow") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
+```
+- Dostępność planktonu [zagęszczenie Calanus helgolandicus gat. 2]
+```{r}
+ggplot(sledzie,aes(x=chel2))+geom_histogram(colour = "green") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
+```
+- Dostępność planktonu [zagęszczenie widłonogów gat. 1]
+```{r}
+ggplot(sledzie,aes(x=lcop1))+geom_histogram(colour = "red") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
+```
+- Dostępność planktonu [zagęszczenie widłonogów gat. 2]
+```{r}
+ggplot(sledzie,aes(x=lcop2))+geom_histogram(colour = "black") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
+```
+- Natężenie połowów w regionie [ułamek pozostawionego narybku]
+```{r}
+ggplot(sledzie,aes(x=fbar))+geom_histogram(colour = "green") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Natezenie polowów w regionie")
+```
+- Roczny narybek [Liczba śledzi]
+```{r}
+ggplot(sledzie,aes(x=recr))+geom_histogram(colour = "yellow") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Roczny narybek")
+```
+- Łączne roczne natężenie połowów w regionie [ułamek pozostawionego narybku]
+```{r}
+ggplot(sledzie,aes(x=cumf))+geom_histogram(colour = "blue") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Łączne roczne natężenie połowów w regionie")
+```
+- Łączna liczba ryb złowionych w ramach połowu [liczba śledzi]
+```{r}
+ggplot(sledzie,aes(x=totaln))+geom_histogram(colour = "red") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Łączna liczba ryb złowionych w ramach połowu")
+```
+- Temperatura przy powierzchni wody [°C]
+```{r}
+ggplot(sledzie,aes(x=sst))+geom_histogram(colour = "blue") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Temperatura [°C]")
+```
+- Poziom zasolenia wody [Knudsen ppt]
+```{r} 
+ggplot(sledzie,aes(x=sal))+geom_histogram(colour = "yellow") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Poziom zasolenia wody")
+```
+- Oscylacja pólnocnoatlantycka [mb]
+```{r}
+ggplot(sledzie,aes(x=nao))+geom_histogram(colour = "red")+theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Oscylacja pólnocnoatlantycka")
+```
+10. Zmiana długości śledzia w czasie.
+
+Zakładając, że dane sa poukładane chronologicznie to wykres zmiany długości w czasie będzie wygladał następująco:
+```{r}
+r <- ggplot(sledzie, aes(x = X, y=length)) + geom_point() + geom_smooth(method="auto", se=TRUE, color="yellow") + ggtitle("Zmiana długości śledzia w czasie")
+ggplotly(r)
+```
+Natomiast jeżeli dane nie są posortowane chronologicznie mozna je pogrupować po wartości zmiennej recr, która przedstawia roczny połów a więc przedstawia poszczególne lata.
+```{r}
+sledzieGrupowane <- sledzie%>%group_by(recr)%>%summarize(mean=mean(length))
+plot_ly(sledzieGrupowane, y = ~mean, name = 'zmiana długości w czasie', type = 'scatter', mode = 'lines') 
+```
+Jak pokazuje powyzszy wykres, oba przypadki są podobne. Ciekawą analiza porównawczą jest sprawdzenie jak wielkość ryb kształtowala się w poszczególnych miesiącach:
+```{r}
+sledzieGrupowaneMiesiac <- sledzie%>%group_by(xmonth)%>%summarize(mean=mean(length))
+ggplot(sledzieGrupowaneMiesiac, aes(x = xmonth, y = mean))+ geom_point() + geom_smooth(method="auto", se=TRUE, color="red") + ggtitle("Długość śledzia miesięcznie")
+```
+
+Aby poszerzyć pogląd na dane, można zobaczyć jak kształtowały się wartości zmiennych w poszczególnych latach (średnie wartości zmiennych dla poszczególnych wartosci zmiennej recr):
+```{r}
+z <- sledzie%>%group_by(recr)%>%summarize(mean_cfin1 = mean(cfin1), mean_cfin2 = mean(cfin2), mean_chel1 = mean(chel1), mean_chel2 = mean(chel2), mean_lcop1 = mean(lcop1), mean_lcop2 = mean(lcop2), mean_fbar = mean(fbar), mean_cum = mean(cumf), mean_totaln = mean(totaln), mean_sst = mean(sst), mean_sal = mean(sal), mean_nao = mean(nao))
+head(z,length(z$recr))
+```
+11. Korelacja atrybutów
+```{r}
+korel <- round(cor(sledzie%>%select(length,cfin1,cfin2,chel1,chel2,lcop1,lcop2,fbar,recr,cumf,totaln,sst,sal,nao)),2)
+korel
+```
+
+```{r}
+corrplot(korel, method = "square")
+```
+Z analizy wizualizacji oraz tabeli korelacji widać, że są cztery pary skorelowanych ze soba zmiennych :
+Pierwsza para skorelowana dodatnio: lcop1 - chel1 
+```{r}
+ggplot(sledzie,aes(x=lcop1,y=chel1)) + geom_point(colour = "green") + ggtitle("Korelacja lcop1 i chel1")
+```
+Dostępność planktonu [zagęszczenie widłonogów gat. 1] - lcop1 jest zależna od dostępności planktonu [zagęszczenie Calanus helgolandicus gat. 1] - chel1
+
+Druga para skorelowana dodatnio: lcop2 - chel2 
+```{r}
+ggplot(sledzie,aes(x=lcop2,y=chel2)) + geom_point(colour = "yellow") + ggtitle("Korelacja lcop2 i chel2")
+```
+Dostępność planktonu [zagęszczenie widłonogów gat. 2] - lcop2 jest zależna od dostępności planktonu [zagęszczenie Calanus helgolandicus gat. 2] - chel2
+
+Trzecia para skorelowana dodatnio: fbar - cumf 
+```{r}
+ggplot(sledzie,aes(x=fbar,y=cumf))+geom_point(colour = "blue") + ggtitle("Korelacja fbar i cumf")
+```
+Łączne roczne natężenie połowów w regionie [ułamek pozostawionego narybku] - cumf zależy od natężenia połowów w regionie [ułamek pozostawionego narybku] - fbar
+
+Wszystkie wyżej wymienione skorelowane pary są silnie ze sobą powiązane ale ich zależności są oczywiste. Ponieważ badamy długość śledzia i jej zmianę, skupię się na badaniu korelacji atrybutu lenght. Z wizualizacji widać, ze atrybut ten skorelowany jest z dostępnością planktonu [zagęszczenie Calanus helgolandicus gat. 1] - chel1, dostępnością planktonu [zagęszczenie widłonogów gat. 1] - lcop1 oraz natężeniem połowów w regionie [ułamek pozostawionego narybku] - fbar.
+```{r}
+ggplot(sledzie, aes(x=chel1, y=length)) + geom_point() + ggtitle("Korelacja parametrów length")
+```
+```{r}
+ggplot(sledzie, aes(x=lcop1, y=length)) + geom_point() + ggtitle("Korelacja parametrów length")
+```
+
+Jak widać długość śledzia zależy przede wszystkim od zagęszczenia charakterystycznego planktonu.
+
+
+
+
+
+
+
+
+
+
