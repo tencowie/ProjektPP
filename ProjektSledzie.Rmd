@@ -15,7 +15,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 1. Przygotowanie bibliotek do pracy
-```{r biblioteki echo=FALSE}
+```{r biblioteki, echo=FALSE}
 #ładowanie bibliotek
 library(knitr)     
 library(dplyr)  
@@ -50,7 +50,7 @@ xmonth: miesiąc połowu [numer miesiąca]
 nao: oscylacja północnoatlantycka [mb]
 
 3. Zamiana atrybutów "?" na wartości N/A
-```{r}
+```{r echo=FALSE}
 matrix <- as.matrix(sledzie)
 nullValuesCount <- length(matrix[matrix=="?"])
 matrix[matrix=="?"] <- NA
@@ -59,7 +59,7 @@ sledzie <- as.data.frame(matrix)
 
 4. Zmiana typów zmiennych
 Zmiana typów zmiennych ułatwi czyszczenie danych oraz późniejszą analizę.
-```{r}
+```{r echo=FALSE}
 sledzie$length <- as.numeric(as.character(sledzie$length))
 sledzie$cfin1 <- as.numeric(as.character(sledzie$cfin1))
 sledzie$cfin2 <- as.numeric(as.character(sledzie$cfin2))
@@ -80,7 +80,7 @@ sledzie$X <- as.integer(as.character(sledzie$X))
 
 5. Analiza rozkładu atrybutów
 
-```{r}
+```{r echo=FALSE}
 summary(sledzie[-1])
 ```
 
@@ -95,11 +95,12 @@ Na podstawie podsumowania statystyki załadowanego pliku można zauważyć, że 
 
 W zbiorze danych można zwrócić uwagę, że wartości atrybutów występują w podobnych grupach. Dla przedstawienia tej tezy wybrałem przykładowe trzy podzbiory sąsiadujących ze sobą elementów:
 
-```{r}
+```{r echo=FALSE}
 sledzie[c(1:5, 1001:1005, 20001:20005), ]
 ```
+
 7. Uzupełnianie wartości pustych
-```{r}
+```{r echo=FALSE}
 for(i in 1:length(sledzie$cfin1))
 {
   if(is.na(sledzie$cfin1[i]))
@@ -326,9 +327,10 @@ for(i in 1:length(sledzie$cfin1))
   }
 }
 ```
+
 Po zamianie pustych wartości na podobne, podsumowanie zbioru danych wygląda następujaco:
 
-```{r}
+```{r echo=FALSE}
 summary(sledzie[-1])
 ```
 
