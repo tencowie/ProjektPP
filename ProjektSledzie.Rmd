@@ -14,7 +14,9 @@ editor_options:
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
 ## 1. Przygotowanie bibliotek do pracy
+
 ```{r biblioteki, echo = FALSE}
 #ładowanie bibliotek
 library(knitr)     
@@ -26,7 +28,9 @@ library(corrplot)
 library(caret)       
 library(randomForest)
 ```
+
 ## 2. Ładowanie oraz struktura danych
+
 ```{r pressure, echo = FALSE}
 set.seed(120) #gwarancja tych samych danych przy każdym uruchomieniu programu
 sledzie <- read.csv("sledzie.csv")
@@ -50,6 +54,7 @@ xmonth: miesiąc połowu [numer miesiąca]
 nao: oscylacja północnoatlantycka [mb]
 
 ## 3. Zamiana atrybutów "?" na wartości N/A
+
 ```{r echo = FALSE}
 matrix <- as.matrix(sledzie)
 nullValuesCount <- length(matrix[matrix=="?"])
@@ -58,6 +63,7 @@ sledzie <- as.data.frame(matrix)
 ```
 
 ## 4. Zmiana typów zmiennych
+
 Zmiana typów zmiennych ułatwi czyszczenie danych oraz późniejszą analizę.
 ```{r echo = FALSE}
 sledzie$length <- as.numeric(as.character(sledzie$length))
@@ -100,6 +106,7 @@ sledzie[c(1:5, 1001:1005, 20001:20005), ]
 ```
 
 ## 7. Uzupełnianie wartości pustych
+
 ```{r echo = FALSE}
 for(i in 1:length(sledzie$cfin1))
 {
@@ -335,6 +342,7 @@ summary(sledzie[-1])
 ```
 
 ## 8. Normalizacja danych
+
 W celu znormalizowania danych dzielimy cały obszar na zbiór uczacy i treningowy. Aby tego dokonać, korzystam z biblioteki caret i określam parametr stratyfikacji (w naszym podejściu długość śledzia - length), procent w ziorze uczącym (75%) oraz "wymuszę" indeksy zamiast listy.
 ```{r echo = FALSE} 
 set.seed(23)
@@ -347,62 +355,91 @@ sledzieTest <- sledzie[-inTraining, ]
 ```
 
 ## 9. Analiza atrybutów zbioru danych
+
 - Długość śledzia
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=length)) + geom_histogram(colour = "red") + ggtitle("Długość śledzia")
 ```
+
 - Dostępność planktonu [zagęszczenie Calanus finmarchicus gat. 1]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=cfin1)) + geom_histogram(colour = "yellow") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
 ```
+
 - Dostepność planktonu[zagęszczenie Calanus finmarchicus gat. 2]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=cfin2)) + geom_histogram(colour = "green") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
 ```
+
 - Dostępnosc planktonu [zageszczenie Calanus helgolandicus gat. 1]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=chel1))+geom_histogram(colour = "yellow") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
 ```
+
 - Dostępność planktonu [zagęszczenie Calanus helgolandicus gat. 2]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=chel2))+geom_histogram(colour = "green") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
 ```
+
 - Dostępność planktonu [zagęszczenie widłonogów gat. 1]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=lcop1))+geom_histogram(colour = "red") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
 ```
+
 - Dostępność planktonu [zagęszczenie widłonogów gat. 2]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=lcop2))+geom_histogram(colour = "black") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Dostępność planktonu")
 ```
+
 - Natężenie połowów w regionie [ułamek pozostawionego narybku]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=fbar)) + geom_histogram(colour = "green") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Natezenie polowów w regionie")
 ```
+
 - Roczny narybek [Liczba śledzi]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=recr)) + geom_histogram(colour = "yellow") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Roczny narybek")
 ```
+
 - Łączne roczne natężenie połowów w regionie [ułamek pozostawionego narybku]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=cumf)) + geom_histogram(colour = "blue") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Łączne roczne natężenie połowów w regionie")
 ```
+
 - Łączna liczba ryb złowionych w ramach połowu [liczba śledzi]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=totaln)) + geom_histogram(colour = "red") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Łączna liczba ryb złowionych w ramach połowu")
 ```
+
 - Temperatura przy powierzchni wody [°C]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=sst)) + geom_histogram(colour = "blue") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Temperatura [°C]")
 ```
+
 - Poziom zasolenia wody [Knudsen ppt]
+
 ```{r echo = FALSE} 
 ggplot(sledzie,aes(x=sal)) + geom_histogram(colour = "yellow") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Poziom zasolenia wody")
 ```
+
 - Oscylacja pólnocnoatlantycka [mb]
+
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=nao)) + geom_histogram(colour = "red")+theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Oscylacja pólnocnoatlantycka")
 ```
+
 ## 10. Zmiana długości śledzia w czasie.
 
 Zakładając, że dane sa poukładane chronologicznie to wykres zmiany długości w czasie będzie wygladał następująco:
@@ -410,11 +447,13 @@ Zakładając, że dane sa poukładane chronologicznie to wykres zmiany długośc
 r <- ggplot(sledzie, aes(x = X, y=length)) + geom_point() + geom_smooth(method="auto", se=TRUE, color="yellow") + ggtitle("Zmiana długości śledzia w czasie")
 ggplotly(r)
 ```
+
 Natomiast jeżeli dane nie są posortowane chronologicznie mozna je pogrupować po wartości zmiennej recr, która przedstawia roczny połów a więc przedstawia poszczególne lata.
 ```{r echo = FALSE}
 sledzieGrupowane <- sledzie%>%group_by(recr)%>%summarize(mean=mean(length))
 plot_ly(sledzieGrupowane, y = ~mean, name = 'zmiana długości w czasie', type = 'scatter', mode = 'lines') 
 ```
+
 Jak pokazuje powyzszy wykres, oba przypadki są podobne. Ciekawą analiza porównawczą jest sprawdzenie jak wielkość ryb kształtowala się w poszczególnych miesiącach:
 ```{r echo = FALSE}
 sledzieGrupowaneMiesiac <- sledzie%>%group_by(xmonth)%>%summarize(mean=mean(length))
@@ -426,7 +465,9 @@ Aby poszerzyć pogląd na dane, można zobaczyć jak kształtowały się wartoś
 z <- sledzie%>%group_by(recr)%>%summarize(mean_cfin1 = mean(cfin1), mean_cfin2 = mean(cfin2), mean_chel1 = mean(chel1), mean_chel2 = mean(chel2), mean_lcop1 = mean(lcop1), mean_lcop2 = mean(lcop2), mean_fbar = mean(fbar), mean_cum = mean(cumf), mean_totaln = mean(totaln), mean_sst = mean(sst), mean_sal = mean(sal), mean_nao = mean(nao))
 head(z,length(z$recr))
 ```
+
 ## 11. Korelacja atrybutów
+
 ```{r echo = FALSE}
 korel <- round(cor(sledzie%>%select(length,cfin1,cfin2,chel1,chel2,lcop1,lcop2,fbar,recr,cumf,totaln,sst,sal,nao)),2)
 korel
@@ -435,26 +476,32 @@ korel
 ```{r echo = FALSE}
 corrplot(korel, method = "square")
 ```
+
 Z analizy wizualizacji oraz tabeli korelacji widać, że są cztery pary skorelowanych ze soba zmiennych :
+
 Pierwsza para skorelowana dodatnio: lcop1 - chel1 
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=lcop1,y=chel1)) + geom_point(colour = "green") + ggtitle("Korelacja lcop1 i chel1")
 ```
+
 Dostępność planktonu [zagęszczenie widłonogów gat. 1] - lcop1 jest zależna od dostępności planktonu [zagęszczenie Calanus helgolandicus gat. 1] - chel1
 
 Druga para skorelowana dodatnio: lcop2 - chel2 
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=lcop2,y=chel2)) + geom_point(colour = "yellow") + ggtitle("Korelacja lcop2 i chel2")
 ```
+
 Dostępność planktonu [zagęszczenie widłonogów gat. 2] - lcop2 jest zależna od dostępności planktonu [zagęszczenie Calanus helgolandicus gat. 2] - chel2
 
 Trzecia para skorelowana dodatnio: fbar - cumf 
 ```{r echo = FALSE}
 ggplot(sledzie,aes(x=fbar,y=cumf))+geom_point(colour = "blue") + ggtitle("Korelacja fbar i cumf")
 ```
+
 Łączne roczne natężenie połowów w regionie [ułamek pozostawionego narybku] - cumf zależy od natężenia połowów w regionie [ułamek pozostawionego narybku] - fbar
 
 Wszystkie wyżej wymienione skorelowane pary są silnie ze sobą powiązane ale ich zależności są oczywiste. Ponieważ badamy długość śledzia i jej zmianę, skupię się na badaniu korelacji atrybutu lenght. Z wizualizacji widać, ze atrybut ten skorelowany jest z dostępnością planktonu [zagęszczenie Calanus helgolandicus gat. 1] - chel1, dostępnością planktonu [zagęszczenie widłonogów gat. 1] - lcop1 oraz natężeniem połowów w regionie [ułamek pozostawionego narybku] - fbar.
+
 ```{r echo = FALSE}
 ggplot(sledzie, aes(x=chel1, y=length)) + geom_point() + ggtitle("Korelacja parametrów length")
 ```
